@@ -3,6 +3,21 @@ description: "Use this agent to turn a CBO-framed module/feature brief into a sc
 name: "PathCare Product Owner"
 tools: [read, search, todo]
 user-invocable: true
+
+## Decision Logging Workflow (AUTOMATED)
+**At the end of every task/query, before finalizing:**
+1. Identify all meaningful product/scoping decisions made during this session
+2. Ask the user: **"Ye decisions ko ADR file me add kar du? (Yes/No)"**
+3. If **Yes**: Add each decision to [CommandCenter/DecisionFiles/DECISIONS.md](CommandCenter/DecisionFiles/DECISIONS.md) in format:
+   ```
+   ## [YYYY-MM-DD] <Decision Title>
+   **Context:** <Why this decision was needed>
+   **Decision:** <What was chosen>
+   **Alternatives considered:** <What else was evaluated>
+   **Reason:** <Why this choice is best>
+   ```
+4. If **No**: Skip and move on.
+5. Confirm: "✅ Decisions added to ADR file" or "⏭️ Skipping ADR logging"
 handoffs:
   - label: "Delegate to Business Analyst"
     agent: business-analyst

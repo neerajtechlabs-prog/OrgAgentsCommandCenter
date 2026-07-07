@@ -22,3 +22,21 @@
 **Decision:** Use tenant-specific PostgreSQL schemas with a public tenants registry.
 **Alternatives considered:** Separate databases per tenant, shared schema with tenant_id column
 **Reason:** Balances isolation, operational simplicity, and scalability for the PathCare multi-tenant model.
+
+## [2026-07-07] Persisted and validated refresh tokens
+**Context:** JWT refresh tokens alone don't support revocation (e.g., logout from all devices, token compromise).
+**Decision:** Store refresh token hashes + family in a `refresh_tokens` table per tenant; validate on refresh; support rotation chains and bulk revocation.
+**Alternatives considered:** Stateless JWT-only refresh; Redis-based token blacklist
+**Reason:** Database-backed validation enables immediate revocation, device management, and audit trails. Rotation chains (token families) mitigate compromise. Easier to integrate with existing audit logging.
+
+## [2026-07-07] Critical-only audit logging policy
+**Context:** Logging every request or non-security-critical event causes performance impact and audit table bloat.
+**Decision:** Restrict audit logging to security-sensitive and admin actions: login/logout/refresh, role changes, user CRUD, tenant access, role denials.
+**Alternatives considered:** Log everything; no audit logging; separate audit queue
+**Reason:** Balances security visibility with performance. Minimal overhead while capturing all meaningful security events. Easy to expand list if new sensitive actions added later.
+
+## [2026-07-07] Audit log retrieval endpoint for admin inspection
+**Context:** Admins need to inspect audit logs directly without database access to verify security events and debug access issues.
+**Decision:** Expose GET /audit endpoint protected by JWT + RBAC (SUPER_ADMIN, LAB_ADMIN roles only) with optional filters (limit, action, userId).
+**Alternatives considered:** No UI access (DB-only); full unrestricted access
+**Reason:** Provides admin visibility into security events while maintaining access control. Filters reduce noise and make troubleshooting easier. Follows principle of least privilege.

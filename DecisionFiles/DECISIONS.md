@@ -40,3 +40,9 @@
 **Decision:** Expose GET /audit endpoint protected by JWT + RBAC (SUPER_ADMIN, LAB_ADMIN roles only) with optional filters (limit, action, userId).
 **Alternatives considered:** No UI access (DB-only); full unrestricted access
 **Reason:** Provides admin visibility into security events while maintaining access control. Filters reduce noise and make troubleshooting easier. Follows principle of least privilege.
+
+## [2026-07-07] Basic login lockout policy
+**Context:** The authentication flow needed a first-layer defense against brute-force and password spraying attempts without introducing excessive user friction.
+**Decision:** Lock out a user/IP combination after 5 failed login attempts within a 15-minute window, and reset the counter after a successful login.
+**Alternatives considered:** No lockout; lockout after 3 attempts; lockout for 24 hours
+**Reason:** Five attempts is a practical balance for healthcare staff, reducing brute-force risk while avoiding overly aggressive lockouts from ordinary typos. The window keeps the protection bounded and manageable for support teams.

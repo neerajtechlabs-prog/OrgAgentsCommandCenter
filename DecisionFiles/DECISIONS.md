@@ -58,3 +58,21 @@
 **Decision:** Implement tenant-scoped test catalog CRUD with dedicated entities, repositories, services, and controllers, and add CSV-based import plus search endpoints for test discovery.
 **Alternatives considered:** Keep test catalog data in a shared table, or support CRUD only without bulk import/search.
 **Reason:** The tenant-scoped model preserves isolation, while search and CSV import reduce manual setup effort and make the catalog usable for real lab workflows.
+
+## [2026-07-09] Tenant-scoped doctor and patient master data
+**Context:** Week 6 required a reliable way to manage doctors and patients per tenant, including registration, lookup, and history access without cross-tenant leakage.
+**Decision:** Implement doctor and patient records as tenant-scoped entities with dedicated CRUD APIs, search endpoints, and a patient UID generation flow.
+**Alternatives considered:** Keep doctor/patient data in shared tables with tenant filtering, or only support in-memory/demo data.
+**Reason:** Tenant-scoped master data keeps the platform compliant with multi-tenancy isolation and supports real operational workflows such as registration and patient lookup.
+
+## [2026-07-09] Patient UID generation as a deterministic registration identifier
+**Context:** Patient registration needed a consistent identifier that could be generated during onboarding and used across the booking and reporting flow.
+**Decision:** Generate patient UIDs using the format PT-YYYYMMDD-XXXX, derived from the registration date and a monotonic sequence per tenant.
+**Alternatives considered:** Random UUID-only identifiers, or manual entry-based IDs.
+**Reason:** The structured UID is human-readable for support teams, easy to search, and still deterministic enough for downstream workflows.
+
+## [2026-07-09] Seeded doctor and patient reference data per tenant
+**Context:** Week 6 needed realistic sample data for UI validation and demo readiness without depending on manual imports.
+**Decision:** Seed each tenant schema with representative doctor and patient records during bootstrap, alongside existing lab and test catalog seed data.
+**Alternatives considered:** No seed data, or only seed users without domain records.
+**Reason:** Seeded reference data accelerates local testing and keeps the demo environment closer to real production usage.

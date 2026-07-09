@@ -109,3 +109,10 @@
 **Decision:** Implement receipt creation inside a tenant-scoped database transaction (`tenantDS.manager.transaction`) that: validates `amount <= remaining`, saves a new `BookingReceipt` with a generated `receiptNumber`, updates the `Booking`'s `paidAmount`, `paymentVerified`, and `status` (CONFIRMED when fully paid). The service validates inputs and throws on invalid operations.
 **Alternatives considered:** Offload receipt processing to a queue or perform non-transactional two-step writes.
 **Reason:** A DB transaction guarantees atomicity and prevents race conditions or partial updates (double application, lost updates). This approach provides a stronger correctness model for financial data and simplifies client-side error handling.
+
+
+## [2026-07-09] Result evaluation and critical alerting
+**Context:** Results must be evaluated against parameter thresholds to detect abnormal and critical values and notify staff immediately for critical findings.
+**Decision:** Evaluate parameter results in a background worker (`results.evaluate`) that reads `test_parameter_results`, compares numeric values against `normalMin/normalMax/criticalMin/criticalMax` on `test_parameters`, persists `isAbnormal`/`isCritical` flags, and enqueues notification jobs (email/SMS) when any critical value is detected. Evaluation runs in the tenant schema using `TenantDataSourceService`. Notifications are enqueued via the existing `QueueService` to the notifications queue.
+**Alternatives considered:** Synchronous evaluation during result entry; external rule engine or third-party alerting service.
+**Reason:** Background evaluation keeps entry latency low, centralizes alerting logic, and leverages existing queue & notification infrastructure while ensuring tenant-scoped DB access and auditability.

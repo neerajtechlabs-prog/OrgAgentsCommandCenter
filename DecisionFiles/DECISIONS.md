@@ -76,3 +76,15 @@
 **Decision:** Seed each tenant schema with representative doctor and patient records during bootstrap, alongside existing lab and test catalog seed data.
 **Alternatives considered:** No seed data, or only seed users without domain records.
 **Reason:** Seeded reference data accelerates local testing and keeps the demo environment closer to real production usage.
+
+## [2026-07-09] Tenant-scoped booking workflow for Week 7
+**Context:** Week 7 needed a booking lifecycle that could support patient selection, test selection, booking number assignment, and payment confirmation while remaining tenant-safe.
+**Decision:** Implement bookings and booking_tests as tenant-scoped entities with a dedicated booking service, controller, booking-number generation, QR/barcode generation, and payment validation workflow.
+**Alternatives considered:** Keep booking data in a shared table with tenant filtering, or implement booking creation without structured identifiers and payment tracking.
+**Reason:** A dedicated tenant-scoped booking model supports real operational flows, keeps the multi-tenant isolation model intact, and provides the data needed for later reporting and receipt workflows.
+
+## [2026-07-09] Deterministic booking number generation
+**Context:** Booking records needed a human-readable reference number that could be used by staff, patients, and downstream integrations without relying on random IDs.
+**Decision:** Generate booking numbers in the format TENANTCODE-YYYYMMDD-XXXX using the tenant slug, booking date, and a monotonic sequence.
+**Alternatives considered:** Random UUID-only identifiers, or manual booking numbering.
+**Reason:** Deterministic numbers are easier for support teams to read and communicate, while still being unique and compatible with future automation.

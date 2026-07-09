@@ -16,7 +16,7 @@ Jab aap VS Code me Copilot Chat kholte ho aur ek agent select karte ho, VS Code 
 
 ---
 
-## 2. "Sync" ka asli matlab yahan
+## 2. "Sync" ka asli matlab yahan 
 
 Kyunki koi server nahi hai, "sync" ka matlab hai **2 cheezein**:
 

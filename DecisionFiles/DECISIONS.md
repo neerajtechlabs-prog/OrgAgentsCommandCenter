@@ -122,3 +122,9 @@
 **Decision:** Implement a tenant-scoped `reports` entity plus a dedicated reports module. Report creation is handled synchronously via a REST endpoint, then PDF generation runs asynchronously through the existing BullMQ report queue. The worker updates the report record with status, file path, and a public verification URL. Public verification uses a token-based endpoint that does not require authentication.
 **Alternatives considered:** Synchronous PDF generation in the request thread, or storing report state only in memory without persistence.
 **Reason:** Queue-based processing avoids blocking the API during long-running PDF creation, while tenant-scoped persistence makes report status and public verification reliable and auditable. The public token approach keeps the verification flow simple without exposing sensitive internal data.
+
+## [2026-07-09] Queue-backed notifications with tenant-scoped delivery logs
+**Context:** Week 11 required a reliable way to send SMS, WhatsApp, and email notifications for report/result events without blocking the request path, while keeping delivery history isolated per tenant.
+**Decision:** Introduce a dedicated notifications module that accepts notification requests through a REST endpoint, persists a `notification_logs` record in the tenant schema, and enqueues delivery jobs to the BullMQ notifications queue. The queue processor updates the log status as `processing`, `sent`, or `failed` based on the worker outcome.
+**Alternatives considered:** Send notifications synchronously inline with the main request, or keep delivery history only in memory without durable persistence.
+**Reason:** Queue-based delivery keeps API latency low, while tenant-scoped log persistence provides auditability, retry visibility, and a consistent pattern for future provider integrations such as Twilio or SendGrid.

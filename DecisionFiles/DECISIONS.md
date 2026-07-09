@@ -46,3 +46,15 @@
 **Decision:** Lock out a user/IP combination after 5 failed login attempts within a 15-minute window, and reset the counter after a successful login.
 **Alternatives considered:** No lockout; lockout after 3 attempts; lockout for 24 hours
 **Reason:** Five attempts is a practical balance for healthcare staff, reducing brute-force risk while avoiding overly aggressive lockouts from ordinary typos. The window keeps the protection bounded and manageable for support teams.
+
+## [2026-07-09] Tenant-scoped lab configuration CRUD
+**Context:** PathCare needed a first-class way to manage lab profiles, departments, and sample types per tenant without leaking data across tenants.
+**Decision:** Implement lab, department, and sample type CRUD as tenant-scoped entities with dedicated repositories, services, DTOs, controllers, and module wiring in the backend.
+**Alternatives considered:** Store these details in a shared schema with tenant_id filtering, or keep them as unstructured configuration without dedicated CRUD APIs.
+**Reason:** Tenant-scoped entities preserve multi-tenancy isolation, provide a clean API surface for lab administration, and align with the existing schema-per-tenant architecture.
+
+## [2026-07-09] Tenant-scoped test catalog CRUD and import workflow
+**Context:** The Week 5 test catalog module needed a consistent way to manage tests and parameters per tenant, while also supporting bulk onboarding from CSV files.
+**Decision:** Implement tenant-scoped test catalog CRUD with dedicated entities, repositories, services, and controllers, and add CSV-based import plus search endpoints for test discovery.
+**Alternatives considered:** Keep test catalog data in a shared table, or support CRUD only without bulk import/search.
+**Reason:** The tenant-scoped model preserves isolation, while search and CSV import reduce manual setup effort and make the catalog usable for real lab workflows.

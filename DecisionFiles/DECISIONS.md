@@ -88,3 +88,24 @@
 **Decision:** Generate booking numbers in the format TENANTCODE-YYYYMMDD-XXXX using the tenant slug, booking date, and a monotonic sequence.
 **Alternatives considered:** Random UUID-only identifiers, or manual booking numbering.
 **Reason:** Deterministic numbers are easier for support teams to read and communicate, while still being unique and compatible with future automation.
+
+
+## [2026-07-09] Booking list filters & pagination
+**Context:** The UI requires listing bookings with search, filtering by status/date ranges, and pagination for large datasets.
+**Decision:** Implement server-side filtering and offset-based pagination in the booking repository (`page` + `perPage`) with optional filters: free-text search (bookingNumber, phone, email, patientId via ILIKE), status, and preferredDate range.
+**Alternatives considered:** Cursor-based pagination, client-side pagination after fetching larger result sets.
+**Reason:** Offset-based pagination is simple to implement and integrates with the existing UI patterns (page numbers). It provides predictable behavior for staff-facing listing screens and is sufficient for expected dataset sizes; cursor pagination can be added later if performance requires it.
+
+
+## [2026-07-09] Cancellation flow & audit logging
+**Context:** Cancellation of bookings must be auditable and must prevent invalid state transitions (e.g., cancelling already cancelled bookings or creating receipts for cancelled bookings).
+**Decision:** Make cancellation an atomic update to the `Booking` entity setting `status = CANCELLED` and `cancellationRemark`, validate a non-empty remark, then create an audit log entry that records `oldValues` and `newValues` (including the remark). The operation is synchronous and guarded by NotFound/BadRequest validations in the service layer.
+**Alternatives considered:** Record cancellations in a separate table and asynchronously reconcile, or enqueue cancellation via job queue.
+**Reason:** Synchronous, atomic updates simplify UX (immediate feedback) and ensure the audit trail captures the exact state change. This design reduces complexity and avoids race conditions during cancellation and subsequent actions (receipts, reports).
+
+
+## [2026-07-09] Balance receipt handling (atomic receipts)
+**Context:** Receipts must update both `BookingReceipt` and the corresponding `Booking`'s `paidAmount`, `paymentVerified`, and potentially `status` without leaving the system in an inconsistent state.
+**Decision:** Implement receipt creation inside a tenant-scoped database transaction (`tenantDS.manager.transaction`) that: validates `amount <= remaining`, saves a new `BookingReceipt` with a generated `receiptNumber`, updates the `Booking`'s `paidAmount`, `paymentVerified`, and `status` (CONFIRMED when fully paid). The service validates inputs and throws on invalid operations.
+**Alternatives considered:** Offload receipt processing to a queue or perform non-transactional two-step writes.
+**Reason:** A DB transaction guarantees atomicity and prevents race conditions or partial updates (double application, lost updates). This approach provides a stronger correctness model for financial data and simplifies client-side error handling.

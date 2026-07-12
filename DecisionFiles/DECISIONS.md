@@ -128,3 +128,9 @@
 **Decision:** Introduce a dedicated notifications module that accepts notification requests through a REST endpoint, persists a `notification_logs` record in the tenant schema, and enqueues delivery jobs to the BullMQ notifications queue. The queue processor updates the log status as `processing`, `sent`, or `failed` based on the worker outcome.
 **Alternatives considered:** Send notifications synchronously inline with the main request, or keep delivery history only in memory without durable persistence.
 **Reason:** Queue-based delivery keeps API latency low, while tenant-scoped log persistence provides auditability, retry visibility, and a consistent pattern for future provider integrations such as Twilio or SendGrid.
+
+## [2026-07-12] Week 12 MIS + Day Collection as a tenant-scoped reporting workflow
+**Context:** Week 12 needed a practical MIS workflow for day-level collections, day register views, and Excel export without breaking the existing multi-tenant architecture or adding heavy new infrastructure.
+**Decision:** Implement MIS as a tenant-scoped backend module that queries the current tenant schema directly for day collection aggregates and day register rows, and uses the existing BullMQ export queue to generate Excel workbooks asynchronously. The flow exposes dedicated endpoints for summary, register, and export request, and records export requests through the audit layer.
+**Alternatives considered:** Build MIS reporting entirely in the frontend, generate exports synchronously in the request thread, or move all reporting into a separate shared reporting database.
+**Reason:** This approach keeps reporting data tenant-safe, uses the existing queue and audit patterns already established in the platform, and provides a simple, maintainable path for day-level MIS operations without over-engineering the initial implementation.

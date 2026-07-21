@@ -146,3 +146,9 @@
 **Decision:** Expose a read-only public endpoint at `GET /public/tests` and `GET /api/public/tests` backed by the existing public datasource. The endpoint reads active rows from the public `tests` table and returns a normalized payload for frontend consumption.
 **Alternatives considered:** Keep the test list hardcoded in the frontend; expose a tenant-scoped endpoint only; create a separate table or service outside the existing tests module.
 **Reason:** A public read-only endpoint avoids duplicating test catalog data in the frontend, keeps the contract simple, and reuses the existing backend test module and public datasource pattern without compromising tenant isolation for write operations.
+
+## [2026-07-21] Tenant deletion flow uses init/confirm OTP without email delivery
+**Context:** The tenant delete workflow must guard against accidental deletes and support a confirmable flow, but the current environment does not need or support real email delivery for OTPs.
+**Decision:** Implement tenant deletion as `POST /tenants/delete/init` to create a deletion request with `referenceId` and `otpCode` stored in `public.tenant_delete_requests`, then return the OTP directly in the init response. Confirm deletion with `POST /tenants/delete/confirm` using the returned OTP and slug.
+**Alternatives considered:** Keep the original email-send path, require an authenticated admin session, or use out-of-band SMS/WhatsApp OTP delivery.
+**Reason:** Returning the OTP directly simplifies local testing and avoids dependency on email infrastructure while preserving an explicit two-step delete confirmation flow and auditability.

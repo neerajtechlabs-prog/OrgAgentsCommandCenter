@@ -152,3 +152,27 @@
 **Decision:** Implement tenant deletion as `POST /tenants/delete/init` to create a deletion request with `referenceId` and `otpCode` stored in `public.tenant_delete_requests`, then return the OTP directly in the init response. Confirm deletion with `POST /tenants/delete/confirm` using the returned OTP and slug.
 **Alternatives considered:** Keep the original email-send path, require an authenticated admin session, or use out-of-band SMS/WhatsApp OTP delivery.
 **Reason:** Returning the OTP directly simplifies local testing and avoids dependency on email infrastructure while preserving an explicit two-step delete confirmation flow and auditability.
+
+## [2026-07-23] Lightweight signup with deferred tenant schema provisioning
+**Context:** Every signup previously created a tenant datasource, schema, and tenant user immediately, meaning fake or unapproved registrations still paid the full provisioning cost.
+**Decision:** Signup now only inserts a `public.tenants` row (status=`unverified`) with the hashed admin credentials and lab details. Tenant schema creation is deferred until the registration is admin-approved AND the admin's first login occurs. Extended `tenants.status` to a full lifecycle: `unverified` → `pending_approval` → `approved` → `provisioning` → `active` (plus `provisioning_failed`, `suspended`, `expired`).
+**Alternatives considered:** A separate `tenant_registrations` table for pre-approval state; provisioning the schema at admin-approval time instead of at first login.
+**Reason:** Extending `public.tenants` directly avoids migrating a row between two tables at approval time. Deferring provisioning to first login (rather than approval time) means schema creation only happens for registrations that are actually used, not merely approved-but-abandoned ones.
+
+## [2026-07-23] OTP-based email verification before admin approval, with a channel-agnostic delivery abstraction
+**Context:** Registrations need to be verified as reachable before an admin spends time reviewing them, and SMS OTP delivery (paid, MSG91/Twilio) will be added after email-only launch.
+**Decision:** OTP generation/verification lives behind an `OtpDeliveryChannel` interface (`EmailOtpChannel` now, `SmsOtpChannel` later). OTPs expire after 10 minutes, allow a 60-second resend cooldown (max 5 resends/hour), and allow max 5 verification attempts before requiring a fresh resend. On successful verification, a unique `labCode` is generated and emailed, and status moves to `pending_approval`.
+**Alternatives considered:** Coupling OTP logic directly to email sending; skipping OTP verification and relying on admin approval alone as the only gate.
+**Reason:** The channel abstraction means adding SMS later only requires a new channel class, not touching OTP core logic. Requiring OTP verification before a registration reaches `pending_approval` filters out unreachable/fake signups before an admin's time is spent reviewing them.
+
+## [2026-07-23] Login resolves tenant by labCode, not hostname/subdomain
+**Context:** The platform runs on a single static domain (no wildcard subdomains), so the original hostname-based `X-Tenant-Slug` resolution doesn't apply to login.
+**Decision:** Login now accepts `labCode + email + password` together in a single request. The backend resolves the tenant via `labCode`, verifies the password against the stored hash first, then applies status-specific handling. The `X-Tenant-Slug` header requirement is removed specifically from the login route; it remains required on all other authenticated requests, driven by the JWT's `tenantSlug` claim.
+**Alternatives considered:** Resolving tenant by labCode alone before checking credentials (two-step login); keeping a mandatory `X-Tenant-Slug` header on login by asking the user to enter it manually.
+**Reason:** Verifying all three fields in one request avoids leaking whether a labCode is valid before checking credentials (anti-enumeration). Verifying the password before attempting any tenant schema provisioning avoids wasting provisioning work on requests that would fail auth anyway.
+
+## [2026-07-23] Tenant schema provisioning guarded by a Postgres advisory lock
+**Context:** Provisioning now happens lazily on a tenant's first approved login, which introduces a real risk of two near-simultaneous login requests both attempting to provision the same tenant's schema.
+**Decision:** Use `pg_advisory_lock` keyed on the tenant's UUID to guard the provisioning sequence. While a request holds the lock, the tenant's status is set to `provisioning`; a concurrent login request encountering this status is rejected with an HTTP 409 and a "your account is being set up, retry shortly" message rather than attempting to acquire the lock itself. After provisioning completes, the tenant's first `users` row is created from the public registration's email and already-hashed password (no re-hash), and status moves to `active`.
+**Alternatives considered:** A Redis-based distributed lock for the provisioning guard.
+**Reason:** A Postgres advisory lock is transactional and auto-releases on disconnect, avoiding a dependency on Redis availability for a correctness-critical step. Redis remains the right tool for caching elsewhere, just not for this lock.
